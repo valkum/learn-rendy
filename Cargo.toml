@@ -32,5 +32,12 @@ gfx-hal = "0.1"
 [dependencies.rendy]
 optional = true
 # path = "../rendy/rendy"
-git = "https://github.com/termhn/rendy"
-rev = "aa19aa400e7631b5b27883efc8f9890bd61b811f"
+features = ["texture-image"]
+git = "https://github.com/omni-viral/rendy"
+rev = "d9c3e2751ed41e361275a81a6d5a22eea53634d5"
+
+
+# [patch.crates-io]
+# gfx-hal = { git = "https://github.com/gfx-rs/gfx.git" }
+# gfx-backend-vulkan = { git = "https://github.com/gfx-rs/gfx.git" }
+# gfx-backend-empty = { git = "https://github.com/gfx-rs/gfx.git" }

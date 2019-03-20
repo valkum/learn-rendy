@@ -5,14 +5,14 @@
 
 use rendy::{
     command::{DrawIndexedCommand, QueueId, RenderPassEncoder},
-    factory::{Config, Factory},
+    factory::{Config, Factory, ImageState},
     graph::{present::PresentNode, render::*, GraphBuilder, NodeBuffer, NodeImage},
     hal::{pso::DescriptorPool, Device},
     memory::MemoryUsageValue,
     mesh::{AsVertex, Mesh, PosNormTex, Transform},
     resource::buffer::Buffer,
     shader::{Shader, ShaderKind, SourceLanguage, StaticShaderInfo},
-    texture::{pixel::Rgba8Srgb, Texture, TextureBuilder},
+    texture::{pixel::Rgba8Srgb, Texture, TextureBuilder, image::ImageTextureConfig, image::load_from_image},
 };
 
 use std::{mem::size_of, time};
@@ -272,30 +272,54 @@ where
             .build(queue, factory)
             .unwrap();
 
-        let cube_tex_bytes = include_bytes!("resources/creature.png");
-        let cube_tex_img = image::load_from_memory(&cube_tex_bytes[..])
-            .unwrap()
-            .to_rgba();
+        // This is not working
+        // ######################
 
-        let (w, h) = cube_tex_img.dimensions();
+        use std::fs::File;
+        use std::io::Read;
+        use std::path::Path;
+        let  path = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/resources/not_working.png");
+        dbg!(&path);
 
-        let cube_tex_image_data: Vec<Rgba8Srgb> = cube_tex_img
-            .pixels()
-            .map(|p| Rgba8Srgb { repr: p.data })
-            .collect::<_>();
+        let mut bytes = Vec::new();
+        let mut file = File::open(&path)?;
+        file.read_to_end(&mut bytes)?;
+        let cube_tex_builder = load_from_image(&bytes, ImageTextureConfig::default())?;
 
-        let cube_tex_builder = TextureBuilder::new()
-            .with_kind(gfx_hal::image::Kind::D2(w, h, 1, 1))
-            .with_view_kind(gfx_hal::image::ViewKind::D2)
-            .with_data_width(w)
-            .with_data_height(h)
-            .with_data(&cube_tex_image_data);
+
+
+        // This is working
+        // ######################
+
+        // let cube_tex_bytes = include_bytes!("resources/working.png");
+        // let cube_tex_img = image::load_from_memory(&cube_tex_bytes[..])
+        //     .unwrap()
+        //     .to_rgba();
+
+        // let (w, h) = cube_tex_img.dimensions();
+
+        // let cube_tex_image_data: Vec<Rgba8Srgb> = cube_tex_img
+        //     .pixels()
+        //     .map(|p| Rgba8Srgb { repr: p.data })
+        //     .collect::<_>();
+
+        // let cube_tex_builder = TextureBuilder::new()
+        //     .with_kind(gfx_hal::image::Kind::D2(w, h, 1, 1))
+        //     .with_view_kind(gfx_hal::image::ViewKind::D2)
+        //     .with_data_width(w)
+        //     .with_data_height(h)
+        //     .with_data(&cube_tex_image_data);
+
+        // ######################
 
         let cube_texture = cube_tex_builder
             .build(
-                queue,
-                gfx_hal::image::Access::SHADER_READ,
-                gfx_hal::image::Layout::ShaderReadOnlyOptimal,
+                ImageState{
+                    queue,
+                    stage: gfx_hal::pso::PipelineStage::VERTEX_SHADER,
+                    access: gfx_hal::image::Access::SHADER_READ,
+                    layout: gfx_hal::image::Layout::ShaderReadOnlyOptimal,
+                },
                 factory,
             )
             .unwrap();
@@ -498,7 +522,7 @@ fn main() {
             .into_pass(),
     );
 
-    let present_builder = PresentNode::builder(surface, factory.physical(), color)
+    let present_builder = PresentNode::builder(&factory, surface, color)
         .with_dependency(pass);
 
     let frames = present_builder.image_count() as usize;
